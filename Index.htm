@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <title>Keele STarT Back 篩檢工具</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <style>
+    body {
+      font-family: "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+      background: #f5f5f5;
+      margin: 0;
+      padding: 16px;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: auto;
+      background: #fff;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .question {
+      margin-bottom: 20px;
+      padding: 12px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      background: #fafafa;
+    }
+
+    .question-title {
+      font-weight: bold;
+      margin-bottom: 8px;
+    }
+
+    .options {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .option {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      border-radius: 6px;
+      background: #fff;
+      border: 1px solid #ccc;
+      cursor: pointer;
+      font-size: 0.9rem;
+    }
+
+    .option input {
+      cursor: pointer;
+    }
+
+    button {
+      margin-top: 20px;
+      padding: 12px 20px;
+      border: none;
+      border-radius: 6px;
+      background: #1976d2;
+      color: white;
+      font-size: 1rem;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #125a9c;
+    }
+
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      inset: 0;
+      background: rgba(0,0,0,0.4);
+    }
+
+    .modal-content {
+      background: #fff;
+      margin: 15% auto;
+      padding: 20px;
+      border-radius: 10px;
+      width: 90%;
+      max-width: 400px;
+      text-align: center;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+
+    .close-btn {
+      margin-top: 15px;
+      padding: 10px 16px;
+      background: #555;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    .close-btn:hover {
+      background: #333;
+    }
+
+    .warning {
+      color: #c62828;
+      margin-top: 10px;
+      font-size: 0.9rem;
+    }
+
+    @media (max-width: 600px) {
+      .options {
+        flex-direction: column;
+      }
+      .option {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <h1>Keele STarT Back 篩檢工具</h1>
+  <p>請根據過去兩週的情況回答以下問題：</p>
+
+  <div id="questions"></div>
+
+  <button onclick="calculateScore()">計算分數</button>
+  <div id="warning" class="warning"></div>
+</div>
+
+<!-- Modal -->
+<div id="scoreModal" class="modal">
+  <div class="modal-content">
+    <h2>評估結果</h2>
+    <p id="totalScoreText"></p>
+    <p id="subScoreText"></p>
+    <p id="riskGroupText" style="font-weight:bold;"></p>
+    <button class="close-btn" onclick="closeModal()">關閉</button>
+  </div>
+</div>
+
+<script>
+const questions = [
+  { text: "1. 在過去兩週，我的背痛曾經擴散到腿部", name: "q1", type: "binary" },
+  { text: "2. 在過去兩週，我有時會有肩、頸部痛的情況", name: "q2", type: "binary" },
+  { text: "3. 我曾因為背痛而僅能作短距離步行", name: "q3", type: "binary" },
+  { text: "4. 在過去兩週，我曾因為背痛導致穿衣服的速度比平常緩慢", name: "q4", type: "binary" },
+  { text: "5. 我認為對於一個和我有相同狀況的人來說，體力活動是不安全的", name: "q5", type: "binary" },
+  { text: "6. 我經常會擔心我的背痛", name: "q6", type: "binary" },
+  { text: "7. 我覺得我的背痛很嚴重，而且永遠不會得到任何改善", name: "q7", type: "binary" },
+  { text: "8. 整體而言，我不再享受過去喜歡做的事", name: "q8", type: "binary" },
+  { text: "9. 整體而言，過去兩週內背痛對您的影響程度如何", name: "q9", type: "impact" }
+];
+
+const binaryOptions = [
+  { label: "不同意", value: 0 },
+  { label: "同意", value: 1 }
+];
+
+const impactOptions = [
+  { label: "完全不受影響", value: 0 },
+  { label: "輕微影響", value: 1 },
+  { label: "中度影響", value: 2 },
+  { label: "非常影響", value: 3 },
+  { label: "極度影響", value: 4 }
+];
+
+const questionsDiv = document.getElementById("questions");
+
+questions.forEach((q, index) => {
+  const qDiv = document.createElement("div");
+  qDiv.className = "question";
+
+  const title = document.createElement("div");
+  title.className = "question-title";
+  title.textContent = q.text;
+  qDiv.appendChild(title);
+
+  const optionsDiv = document.createElement("div");
+  optionsDiv.className = "options";
+
+  const options = q.type === "binary" ? binaryOptions : impactOptions;
+
+  options.forEach(opt => {
+    const label = document.createElement("label");
+    label.className = "option";
+
+    const input = document.createElement("input");
+    input.type = "radio";
+    input.name = q.name;
+    input.value = opt.value;
+
+    label.appendChild(input);
+    label.appendChild(document.createTextNode(opt.label));
+    optionsDiv.appendChild(label);
+  });
+
+  qDiv.appendChild(optionsDiv);
+  questionsDiv.appendChild(qDiv);
+});
+
+function calculateScore() {
+  const warning = document.getElementById("warning");
+  warning.textContent = "";
+
+  let totalScore = 0;
+  let subScore = 0;
+
+  for (let i = 1; i <= 9; i++) {
+    const selected = document.querySelector(`input[name="q${i}"]:checked`);
+    if (!selected) {
+      warning.textContent = "請完成所有題目後再計算分數。";
+      return;
+    }
+
+    const val = parseInt(selected.value);
+    totalScore += val;
+
+    if (i >= 5 && i <= 8) {
+      subScore += val;
+    }
+  }
+
+  // Risk stratification
+  let riskGroup = "";
+  if (subScore >= 4) {
+    riskGroup = "高風險（High Risk）";
+  } else if (totalScore >= 4) {
+    riskGroup = "中風險（Medium Risk）";
+  } else {
+    riskGroup = "低風險（Low Risk）";
+  }
+
+  document.getElementById("totalScoreText").innerHTML = `總分：<strong>${totalScore}</strong>（第1–9題）`;
+  document.getElementById("subScoreText").innerHTML = `心理次分：<strong>${subScore}</strong>（第5–8題）`;
+  document.getElementById("riskGroupText").
