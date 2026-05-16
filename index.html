@@ -14,57 +14,80 @@ th, td { padding:10px; border-bottom:1px solid #eee; vertical-align:top; }
 .options label { margin-right:15px; }
 button { margin-top:20px; padding:10px 20px; font-size:1rem; border:none; border-radius:5px; background:#007aff; color:#fff; cursor:pointer; }
 button:hover { background:#005fcc; }
-.result-box { margin-top:20px; padding:15px; background:#eef3ff; border-radius:8px; display:none; }
-.result-box p { margin:0.5em 0; }
+
+/* Modal */
+#scoreModal {
+  display:none; position:fixed; top:0; left:0; width:100%; height:100%;
+  background:rgba(0,0,0,0.4); backdrop-filter:blur(3px);
+  justify-content:center; align-items:center; z-index:9999;
+}
+#scoreModal .modal-content {
+  background:white; padding:20px; border-radius:10px; width:90%; max-width:400px;
+  box-shadow:0 4px 12px rgba(0,0,0,0.2); position:relative;
+}
+#scoreModal .close-btn {
+  position:absolute; top:10px; right:15px; cursor:pointer; font-size:20px;
+}
 </style>
 </head>
+
 <body>
 <div class="container">
 <h1>背痛風險篩檢問卷（SBST）</h1>
 <p class="instructions">請根據您過去兩周的情況，選擇最符合的答案。</p>
+
 <form id="sbstForm">
 <table>
 <tr><th>題號</th><th>問題</th><th>回答</th></tr>
+
 <tr><td>1</td><td>在過去兩周內，我的背痛有時已經擴散到腿部。</td>
 <td class="options">
 <label><input type="radio" name="q1" value="1">同意</label>
 <label><input type="radio" name="q1" value="0">不同意</label>
 </td></tr>
+
 <tr><td>2</td><td>在過去兩周內，我有時會有肩或頸部疼痛的情況。</td>
 <td class="options">
 <label><input type="radio" name="q2" value="1">同意</label>
 <label><input type="radio" name="q2" value="0">不同意</label>
 </td></tr>
+
 <tr><td>3</td><td>我曾因為背痛而僅能短距離行走。</td>
 <td class="options">
 <label><input type="radio" name="q3" value="1">同意</label>
 <label><input type="radio" name="q3" value="0">不同意</label>
 </td></tr>
+
 <tr><td>4</td><td>在過去兩周內，我曾因為背痛導致穿衣服的速度比平常緩慢。</td>
 <td class="options">
 <label><input type="radio" name="q4" value="1">同意</label>
 <label><input type="radio" name="q4" value="0">不同意</label>
 </td></tr>
+
 <tr><td>5</td><td>我認為對於一個和我有相同狀況的人來說，體力活動是不安全的。</td>
 <td class="options">
 <label><input type="radio" name="q5" value="1">同意</label>
 <label><input type="radio" name="q5" value="0">不同意</label>
 </td></tr>
+
 <tr><td>6</td><td>我常會擔心我的背痛。</td>
 <td class="options">
 <label><input type="radio" name="q6" value="1">同意</label>
 <label><input type="radio" name="q6" value="0">不同意</label>
 </td></tr>
+
 <tr><td>7</td><td>我覺得我的背痛很嚴重，且不會得到任何改善。</td>
 <td class="options">
 <label><input type="radio" name="q7" value="1">同意</label>
 <label><input type="radio" name="q7" value="0">不同意</label>
 </td></tr>
+
 <tr><td>8</td><td>整體而言，我不再享受過去喜歡做的事。</td>
 <td class="options">
 <label><input type="radio" name="q8" value="1">同意</label>
 <label><input type="radio" name="q8" value="0">不同意</label>
 </td></tr>
+
 <tr><td>9</td><td>整體而言，過去兩周內背痛對您的影響程度如何？</td>
 <td class="options">
 <label><input type="radio" name="q9" value="0">完全不受影響</label><br>
@@ -73,22 +96,43 @@ button:hover { background:#005fcc; }
 <label><input type="radio" name="q9" value="3">非常影響</label><br>
 <label><input type="radio" name="q9" value="4">重度影響</label>
 </td></tr>
+
 </table>
-<button type="button" onclick="calculateSBST()">計算分數</button>
+
+<button type="button" onclick="passwordGate()">展示給治療師</button>
 </form>
-<div class="result-box" id="resultBox">
-<p>總分：<span id="totalScore"></span> / 9</p>
-<p>心理社會子量表分數（第5–9題）：<span id="subScore"></span> / 5</p>
-<p>風險分類：<span id="riskLevel"></span></p>
 </div>
+
+<!-- Modal -->
+<div id="scoreModal">
+  <div class="modal-content">
+    <span class="close-btn" onclick="closeModal()">×</span>
+    <h3>SBST 分數</h3>
+    <p>總分：<span id="totalScore"></span> / 9</p>
+    <p>心理社會子量表（第 5–9 題）：<span id="subScore"></span> / 5</p>
+    <p>風險分類：<span id="riskLevel"></span></p>
+  </div>
 </div>
+
 <script>
+function passwordGate() {
+  const pw = prompt("請輸入密碼以查看分數：");
+  if (pw === null) return;
+  if (pw !== "225500") {
+    alert("密碼錯誤，無法顯示分數");
+    return;
+  }
+  calculateSBST();
+}
+
 function calculateSBST() {
   let total = 0;
   let sub = 0;
+
   for (let i = 1; i <= 9; i++) {
     const radios = document.getElementsByName('q' + i);
     let answered = false;
+
     for (const r of radios) {
       if (r.checked) {
         const val = parseInt(r.value);
@@ -98,20 +142,30 @@ function calculateSBST() {
         break;
       }
     }
+
     if (!answered) {
       alert("請完成所有題目");
       return;
     }
   }
+
   document.getElementById('totalScore').textContent = total;
   document.getElementById('subScore').textContent = sub;
-  let risk = '';
-  if (total <= 3) risk = '低風險';
-  else if (sub <= 3) risk = '中風險';
-  else risk = '高風險';
+
+  let risk = "";
+  if (total <= 3) risk = "低風險";
+  else if (sub <= 3) risk = "中風險";
+  else risk = "高風險";
+
   document.getElementById('riskLevel').textContent = risk;
-  document.getElementById('resultBox').style.display = 'block';
+
+  document.getElementById('scoreModal').style.display = "flex";
+}
+
+function closeModal() {
+  document.getElementById('scoreModal').style.display = "none";
 }
 </script>
+
 </body>
 </html>
